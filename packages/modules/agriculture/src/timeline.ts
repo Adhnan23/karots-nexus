@@ -1,10 +1,11 @@
+import type { Localized } from "@karots/core";
 import type { CropStage } from "./schema";
 
 export interface StageView {
-  name: string;
+  name: Localized;
   startDay: number;
   endDay: number;
-  description: string | null;
+  description: Localized | null;
   startDate: string;
   endDate: string;
   status: "past" | "current" | "upcoming";
@@ -14,7 +15,7 @@ export interface GrowthTimeline {
   plantedOn: string;
   asOf: string;
   daysSincePlanting: number;
-  currentStage: string | null;
+  currentStage: Localized | null;
   daysToHarvest: number | null;
   progressPercent: number | null;
   stages: StageView[];

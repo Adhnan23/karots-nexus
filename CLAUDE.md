@@ -66,6 +66,18 @@ table exists but is currently unused — keep new features account-free unless t
 - **Frontend** — React + Vite PWA, Tailwind + shadcn/ui (mobile-first, dashboard-centric,
   offline-friendly).
 
+## Localization (Sinhala / Tamil / English)
+
+User-facing content is multilingual. Translatable fields are stored as a **`Localized`
+JSON value `{ en, si?, ta? }`** (English required) — crop names/categories, stage
+names/descriptions, disease text, market `itemName`, district names. The API **returns all
+three languages**; the frontend renders the user's chosen one (instant switch, offline-
+friendly). Helpers live in `@karots/core` (`Localized`, `localize`, `resolveLocale`,
+`isLocalized`, `LOCALES`). Server-generated text (e.g. weather risk messages) is also
+Localized. Drizzle columns use `text(col, { mode: "json" }).$type<Localized>()` (no DDL
+change — stored as TEXT). Identity/grouping keys stay language-neutral (e.g. market
+`itemKey`). Seeded si/ta strings are best-effort — have a native speaker review them.
+
 ## Domain context & external data
 
 Target market is **Sri Lanka**: prices are in **LKR**, locations use the district hierarchy.
@@ -89,7 +101,8 @@ packages/core                  ModuleRegistry, KarotsModule contract, AppBinding
 packages/db                    getDb(d1) factory, core schema (users, districts),
                                drizzle.config (aggregates all schemas), migrations/
 packages/modules/agriculture   crops + crop_stages + market_prices + diseases schema,
-                               Hono router, growth-timeline calc, UploadThing helper
+                               Hono router, growth-timeline + profitability calcs,
+                               UploadThing helper
 packages/modules/weather       Open-Meteo client, current+forecast routes by district,
                                KV cache, farming-risk flags (NO db table — reads core districts)
 packages/ui                    shared components (not created yet)
@@ -130,7 +143,8 @@ Run from the repo root unless noted:
   each module's schema, and writes SQL to `packages/db/migrations/`.
 - **Apply migrations locally**: `bun run db:apply:local`
 - **Apply migrations to remote D1**: `bun run db:apply:remote`
-- **Seed 25 Sri Lanka districts** (idempotent): `bun run seed:districts:local` (or `:remote`)
+- **Seed districts + crops** (idempotent): `bun run seed:local`
+  (or individually `seed:districts:local` / `seed:crops:local`; `:remote` variants exist)
 - **Deploy**: `bun run deploy`
 - **Regenerate Env types from bindings**: `bun run --cwd apps/api cf-typegen` (`wrangler types`)
 

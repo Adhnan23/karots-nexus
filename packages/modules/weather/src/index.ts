@@ -15,4 +15,4 @@ export const weatherModule: KarotsModule = {
 export { fetchWeather } from "./openMeteo";
 export type { WeatherBundle, CurrentWeather, ForecastDay } from "./openMeteo";
 export { deriveRisks } from "./risk";
-export type { FarmingRisks } from "./risk";
+export type { FarmingRisks, RiskNote, RiskCode } from "./risk";

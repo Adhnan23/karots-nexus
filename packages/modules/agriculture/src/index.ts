@@ -27,3 +27,5 @@ export type {
 export { getUploadThing } from "./storage";
 export { buildTimeline } from "./timeline";
 export type { GrowthTimeline, StageView } from "./timeline";
+export { computeProfitability } from "./profitability";
+export type { ProfitabilityInput, ProfitabilityResult } from "./profitability";

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { and, desc, eq, like, type SQL } from "drizzle-orm";
-import { requireAdmin, type AppEnv } from "@karots/core";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { requireAdmin, isLocalized, type AppEnv, type Localized } from "@karots/core";
 import { getDb } from "@karots/db";
 import {
   crops,
@@ -14,10 +14,12 @@ import {
 } from "./schema";
 import { getUploadThing } from "./storage";
 import { buildTimeline } from "./timeline";
+import { computeProfitability } from "./profitability";
 
 /**
  * Agriculture HTTP routes. Mounted by the core registry under "/agriculture",
- * so paths here are relative to that prefix.
+ * so paths here are relative to that prefix. GET routes are public; mutating
+ * routes are admin-only (requireAdmin). User-facing text is Localized (en/si/ta).
  */
 export const agricultureRouter = new Hono<AppEnv>();
 
@@ -38,16 +40,16 @@ agricultureRouter.get("/crops", async (c) => {
 
 agricultureRouter.post("/crops", requireAdmin, async (c) => {
   const body = await c.req.json<{
-    name: string;
-    category?: string;
+    name: Localized;
+    category?: Localized;
     cultivationDurationDays?: number;
     seedPriceMin?: number;
     seedPriceMax?: number;
     imageUrl?: string;
   }>();
 
-  if (!body?.name) {
-    return c.json({ error: "name is required" }, 400);
+  if (!isLocalized(body?.name)) {
+    return c.json({ error: "name is required as { en, si?, ta? }" }, 400);
   }
 
   const db = getDb(c.env.DB);
@@ -65,15 +67,15 @@ agricultureRouter.post("/crops", requireAdmin, async (c) => {
 agricultureRouter.post("/crops/:cropId/stages", requireAdmin, async (c) => {
   const cropId = c.req.param("cropId");
   const body = await c.req.json<{
-    name: string;
+    name: Localized;
     startDay: number;
     endDay: number;
-    description?: string;
+    description?: Localized;
     sortOrder?: number;
   }>();
 
-  if (!body?.name || !Number.isFinite(body.startDay) || !Number.isFinite(body.endDay)) {
-    return c.json({ error: "name, startDay and endDay are required" }, 400);
+  if (!isLocalized(body?.name) || !Number.isFinite(body.startDay) || !Number.isFinite(body.endDay)) {
+    return c.json({ error: "name { en, ... }, startDay and endDay are required" }, 400);
   }
   if (body.endDay < body.startDay) {
     return c.json({ error: "endDay must be >= startDay" }, 400);
@@ -131,12 +133,14 @@ agricultureRouter.get("/prices", async (c) => {
   const itemType = c.req.query("itemType");
   const districtId = c.req.query("districtId");
   const cropId = c.req.query("cropId");
+  const itemKey = c.req.query("itemKey");
   const limit = Math.min(Number(c.req.query("limit") ?? 50) || 50, 200);
 
   const conditions: SQL[] = [];
   if (isItemType(itemType)) conditions.push(eq(marketPrices.itemType, itemType));
   if (districtId) conditions.push(eq(marketPrices.districtId, districtId));
   if (cropId) conditions.push(eq(marketPrices.cropId, cropId));
+  if (itemKey) conditions.push(eq(marketPrices.itemKey, itemKey));
 
   const rows = await db
     .select()
@@ -150,11 +154,11 @@ agricultureRouter.get("/prices", async (c) => {
 
 // Price trend for one item over time (oldest first), optionally per district.
 agricultureRouter.get("/prices/history", async (c) => {
-  const itemName = c.req.query("itemName");
-  if (!itemName) return c.json({ error: "itemName is required" }, 400);
+  const itemKey = c.req.query("itemKey");
+  if (!itemKey) return c.json({ error: "itemKey is required" }, 400);
 
   const districtId = c.req.query("districtId");
-  const conditions: SQL[] = [eq(marketPrices.itemName, itemName)];
+  const conditions: SQL[] = [eq(marketPrices.itemKey, itemKey)];
   if (districtId) conditions.push(eq(marketPrices.districtId, districtId));
 
   const db = getDb(c.env.DB);
@@ -164,13 +168,14 @@ agricultureRouter.get("/prices/history", async (c) => {
     .where(and(...conditions))
     .orderBy(marketPrices.recordedAt);
 
-  return c.json({ itemName, history });
+  return c.json({ itemKey, history });
 });
 
 agricultureRouter.post("/prices", requireAdmin, async (c) => {
   const body = await c.req.json<{
     itemType: ItemType;
-    itemName: string;
+    itemKey: string;
+    itemName: Localized;
     districtId: string;
     cropId?: string;
     wholesale?: number;
@@ -178,9 +183,12 @@ agricultureRouter.post("/prices", requireAdmin, async (c) => {
     currency?: string;
   }>();
 
-  if (!body?.itemName || !body?.districtId || !isItemType(body.itemType)) {
+  if (!isItemType(body?.itemType) || !body?.itemKey || !isLocalized(body?.itemName) || !body?.districtId) {
     return c.json(
-      { error: "itemType (crop|seed|fertilizer|pesticide), itemName and districtId are required" },
+      {
+        error:
+          "itemType (crop|seed|fertilizer|pesticide), itemKey, itemName { en, ... } and districtId are required",
+      },
       400,
     );
   }
@@ -194,6 +202,54 @@ agricultureRouter.post("/prices", requireAdmin, async (c) => {
   return c.json({ price: created }, 201);
 });
 
+/* ----------------------- Profitability --------------------------- */
+
+// Public calculator. Provide marketPricePerKg, or cropId+districtId to use the
+// latest recorded price (retail, falling back to wholesale). Stateless.
+agricultureRouter.post("/profitability", async (c) => {
+  const body = await c.req.json<{
+    totalCost: number;
+    expectedYieldKg: number;
+    marketPricePerKg?: number;
+    cropId?: string;
+    districtId?: string;
+  }>();
+
+  if (!Number.isFinite(body?.totalCost) || !Number.isFinite(body?.expectedYieldKg)) {
+    return c.json({ error: "totalCost and expectedYieldKg (numbers) are required" }, 400);
+  }
+
+  let price = body.marketPricePerKg;
+  if (!Number.isFinite(price)) {
+    if (!body.cropId || !body.districtId) {
+      return c.json(
+        { error: "provide marketPricePerKg, or cropId + districtId to look up the latest price" },
+        400,
+      );
+    }
+    const db = getDb(c.env.DB);
+    const [latest] = await db
+      .select()
+      .from(marketPrices)
+      .where(and(eq(marketPrices.cropId, body.cropId), eq(marketPrices.districtId, body.districtId)))
+      .orderBy(desc(marketPrices.recordedAt))
+      .limit(1);
+    const resolved = latest?.retail ?? latest?.wholesale;
+    if (resolved == null) {
+      return c.json({ error: "no recorded price for that crop and district" }, 404);
+    }
+    price = resolved;
+  }
+
+  return c.json(
+    computeProfitability({
+      totalCost: body.totalCost,
+      expectedYieldKg: body.expectedYieldKg,
+      marketPricePerKg: price as number,
+    }),
+  );
+});
+
 /* --------------------- Disease & pest catalog -------------------- */
 
 agricultureRouter.get("/crops/:cropId/diseases", async (c) => {
@@ -205,13 +261,14 @@ agricultureRouter.get("/crops/:cropId/diseases", async (c) => {
   return c.json({ diseases: rows });
 });
 
-// Symptom-based diagnosis search + optional kind filter.
+// Symptom-based diagnosis search (matches across languages via LIKE over the
+// stored JSON) + optional kind filter.
 agricultureRouter.get("/diseases", async (c) => {
   const symptom = c.req.query("symptom");
   const kind = c.req.query("kind");
 
   const conditions: SQL[] = [];
-  if (symptom) conditions.push(like(diseases.symptoms, `%${symptom}%`));
+  if (symptom) conditions.push(sql`${diseases.symptoms} LIKE ${"%" + symptom + "%"}`);
   if (isDiseaseKind(kind)) conditions.push(eq(diseases.kind, kind));
 
   const db = getDb(c.env.DB);
@@ -226,18 +283,18 @@ agricultureRouter.get("/diseases", async (c) => {
 agricultureRouter.post("/diseases", requireAdmin, async (c) => {
   const body = await c.req.json<{
     cropId: string;
-    name: string;
+    name: Localized;
     kind?: DiseaseKind;
-    symptoms?: string;
-    causes?: string;
-    treatment?: string;
-    prevention?: string;
+    symptoms?: Localized;
+    causes?: Localized;
+    treatment?: Localized;
+    prevention?: Localized;
     imageUrl?: string;
     imageKey?: string;
   }>();
 
-  if (!body?.cropId || !body?.name) {
-    return c.json({ error: "cropId and name are required" }, 400);
+  if (!body?.cropId || !isLocalized(body?.name)) {
+    return c.json({ error: "cropId and name { en, ... } are required" }, 400);
   }
 
   const db = getDb(c.env.DB);

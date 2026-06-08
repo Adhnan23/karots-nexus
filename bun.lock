@@ -37,6 +37,7 @@
       "name": "@karots/db",
       "version": "0.0.0",
       "dependencies": {
+        "@karots/core": "workspace:*",
         "drizzle-orm": "latest",
       },
       "devDependencies": {

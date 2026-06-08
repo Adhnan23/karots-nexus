@@ -36,6 +36,13 @@
       "when": 1780922177395,
       "tag": "0004_next_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1780922895926,
+      "tag": "0005_fancy_cable",
+      "breakpoints": true
     }
   ]
 }

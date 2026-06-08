@@ -11,6 +11,7 @@
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@karots/core": "workspace:*",
     "drizzle-orm": "latest"
   },
   "devDependencies": {

@@ -1,10 +1,12 @@
 import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import type { Localized } from "@karots/core";
 import { districts } from "@karots/db/schema";
 
 /**
  * Crop catalog — the agriculture module's core entity. See plan.md "Crop
  * Intelligence System" for the full intended field set; this is the starting
- * subset. Image assets are stored in UploadThing; we keep only the file URL.
+ * subset. User-facing text (`name`, `category`) is Localized (en/si/ta). Image
+ * assets are stored in UploadThing; we keep only the file URL.
  *
  * This table is OWNED by the agriculture module. It is referenced by the central
  * drizzle.config (build-time) for migration generation, and by this module's
@@ -12,8 +14,8 @@ import { districts } from "@karots/db/schema";
  */
 export const crops = sqliteTable("crops", {
   id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  category: text("category"),
+  name: text("name", { mode: "json" }).$type<Localized>().notNull(),
+  category: text("category", { mode: "json" }).$type<Localized>(),
   /** Typical days from planting to harvest. */
   cultivationDurationDays: integer("cultivation_duration_days"),
   seedPriceMin: real("seed_price_min"),
@@ -31,16 +33,19 @@ export type ItemType = (typeof ITEM_TYPES)[number];
 /**
  * Market price observations (plan.md "Agricultural Market System").
  *
- * Every row is district-scoped — pricing is region-specific. A single item can
- * have many rows over time; querying ordered by `recordedAt` yields the
- * historical trend, and the most recent row is the current price.
+ * Every row is district-scoped — pricing is region-specific. `itemKey` is a
+ * stable, language-neutral slug used for identity/grouping/history; `itemName`
+ * is the Localized display name. A single item has many rows over time; ordering
+ * by `recordedAt` yields the trend and the latest row is the current price.
  */
 export const marketPrices = sqliteTable(
   "market_prices",
   {
     id: text("id").primaryKey(),
     itemType: text("item_type", { enum: ITEM_TYPES }).notNull(),
-    itemName: text("item_name").notNull(),
+    /** Language-neutral slug, e.g. "paddy", "urea". Used for history/grouping. */
+    itemKey: text("item_key").notNull(),
+    itemName: text("item_name", { mode: "json" }).$type<Localized>().notNull(),
     /** Set when the priced item is a catalog crop. */
     cropId: text("crop_id").references(() => crops.id),
     /** Cross-module link to the core location hierarchy. */
@@ -56,7 +61,7 @@ export const marketPrices = sqliteTable(
   },
   (t) => [
     index("market_prices_lookup_idx").on(t.itemType, t.districtId, t.recordedAt),
-    index("market_prices_item_idx").on(t.itemName, t.recordedAt),
+    index("market_prices_item_idx").on(t.itemKey, t.recordedAt),
   ],
 );
 
@@ -65,8 +70,9 @@ export type DiseaseKind = (typeof DISEASE_KINDS)[number];
 
 /**
  * Disease & pest catalog (plan.md "Disease & Pest Intelligence System"), each
- * entry linked to a crop. `symptoms` is plain text to back symptom-based search;
- * `imageKey` is the UploadThing file key so the asset can be deleted with the row.
+ * entry linked to a crop. All descriptive text is Localized; symptom search runs
+ * a LIKE over the stored JSON so it matches in any language. `imageKey` is the
+ * UploadThing file key so the asset can be deleted with the row.
  */
 export const diseases = sqliteTable(
   "diseases",
@@ -75,12 +81,12 @@ export const diseases = sqliteTable(
     cropId: text("crop_id")
       .notNull()
       .references(() => crops.id),
-    name: text("name").notNull(),
+    name: text("name", { mode: "json" }).$type<Localized>().notNull(),
     kind: text("kind", { enum: DISEASE_KINDS }).notNull().default("disease"),
-    symptoms: text("symptoms"),
-    causes: text("causes"),
-    treatment: text("treatment"),
-    prevention: text("prevention"),
+    symptoms: text("symptoms", { mode: "json" }).$type<Localized>(),
+    causes: text("causes", { mode: "json" }).$type<Localized>(),
+    treatment: text("treatment", { mode: "json" }).$type<Localized>(),
+    prevention: text("prevention", { mode: "json" }).$type<Localized>(),
     imageUrl: text("image_url"),
     imageKey: text("image_key"),
     createdAt: integer("created_at", { mode: "timestamp" })
@@ -103,11 +109,11 @@ export const cropStages = sqliteTable(
     cropId: text("crop_id")
       .notNull()
       .references(() => crops.id),
-    name: text("name").notNull(),
+    name: text("name", { mode: "json" }).$type<Localized>().notNull(),
     /** Days from planting when this stage begins / ends (inclusive). */
     startDay: integer("start_day").notNull(),
     endDay: integer("end_day").notNull(),
-    description: text("description"),
+    description: text("description", { mode: "json" }).$type<Localized>(),
     sortOrder: integer("sort_order").notNull().default(0),
   },
   (t) => [index("crop_stages_crop_idx").on(t.cropId, t.startDay)],
