@@ -49,7 +49,7 @@ export const marketPrices = sqliteTable(
       .references(() => districts.id),
     wholesale: real("wholesale"),
     retail: real("retail"),
-    currency: text("currency").notNull().default("INR"),
+    currency: text("currency").notNull().default("LKR"),
     recordedAt: integer("recorded_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
