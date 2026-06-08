@@ -29,6 +29,13 @@
       "when": 1780921570103,
       "tag": "0003_bored_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1780922177395,
+      "tag": "0004_next_deathstrike",
+      "breakpoints": true
     }
   ]
 }

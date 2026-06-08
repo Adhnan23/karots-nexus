@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { and, desc, eq, like, type SQL } from "drizzle-orm";
-import type { AppEnv } from "@karots/core";
+import { requireAdmin, type AppEnv } from "@karots/core";
 import { getDb } from "@karots/db";
 import {
   crops,
+  cropStages,
   marketPrices,
   diseases,
   ITEM_TYPES,
@@ -12,6 +13,7 @@ import {
   type DiseaseKind,
 } from "./schema";
 import { getUploadThing } from "./storage";
+import { buildTimeline } from "./timeline";
 
 /**
  * Agriculture HTTP routes. Mounted by the core registry under "/agriculture",
@@ -34,7 +36,7 @@ agricultureRouter.get("/crops", async (c) => {
   return c.json({ crops: rows });
 });
 
-agricultureRouter.post("/crops", async (c) => {
+agricultureRouter.post("/crops", requireAdmin, async (c) => {
   const body = await c.req.json<{
     name: string;
     category?: string;
@@ -55,6 +57,70 @@ agricultureRouter.post("/crops", async (c) => {
     .returning();
 
   return c.json({ crop: created }, 201);
+});
+
+/* --------------------- Crop growth stages ------------------------ */
+
+// Admin: define a growth stage for a crop (day offsets from planting).
+agricultureRouter.post("/crops/:cropId/stages", requireAdmin, async (c) => {
+  const cropId = c.req.param("cropId");
+  const body = await c.req.json<{
+    name: string;
+    startDay: number;
+    endDay: number;
+    description?: string;
+    sortOrder?: number;
+  }>();
+
+  if (!body?.name || !Number.isFinite(body.startDay) || !Number.isFinite(body.endDay)) {
+    return c.json({ error: "name, startDay and endDay are required" }, 400);
+  }
+  if (body.endDay < body.startDay) {
+    return c.json({ error: "endDay must be >= startDay" }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+  const [created] = await db
+    .insert(cropStages)
+    .values({ id: crypto.randomUUID(), cropId, ...body })
+    .returning();
+
+  return c.json({ stage: created }, 201);
+});
+
+// Public: ordered growth stages for a crop.
+agricultureRouter.get("/crops/:cropId/stages", async (c) => {
+  const db = getDb(c.env.DB);
+  const rows = await db
+    .select()
+    .from(cropStages)
+    .where(eq(cropStages.cropId, c.req.param("cropId")))
+    .orderBy(cropStages.startDay);
+  return c.json({ stages: rows });
+});
+
+// Public calculator: given a planting date, project stages onto real dates and
+// report where the plant should be now. Stateless — nothing is stored.
+agricultureRouter.get("/crops/:cropId/timeline", async (c) => {
+  const plantedOnRaw = c.req.query("plantedOn");
+  if (!plantedOnRaw) return c.json({ error: "plantedOn (YYYY-MM-DD) is required" }, 400);
+  const plantedOn = new Date(plantedOnRaw);
+  if (Number.isNaN(plantedOn.getTime())) {
+    return c.json({ error: "plantedOn must be a valid date (YYYY-MM-DD)" }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+  const stages = await db
+    .select()
+    .from(cropStages)
+    .where(eq(cropStages.cropId, c.req.param("cropId")))
+    .orderBy(cropStages.startDay);
+
+  if (stages.length === 0) {
+    return c.json({ error: "no growth stages defined for this crop" }, 404);
+  }
+
+  return c.json(buildTimeline(stages, plantedOn));
 });
 
 /* ------------------------- Market prices ------------------------- */
@@ -101,7 +167,7 @@ agricultureRouter.get("/prices/history", async (c) => {
   return c.json({ itemName, history });
 });
 
-agricultureRouter.post("/prices", async (c) => {
+agricultureRouter.post("/prices", requireAdmin, async (c) => {
   const body = await c.req.json<{
     itemType: ItemType;
     itemName: string;
@@ -157,7 +223,7 @@ agricultureRouter.get("/diseases", async (c) => {
   return c.json({ diseases: rows });
 });
 
-agricultureRouter.post("/diseases", async (c) => {
+agricultureRouter.post("/diseases", requireAdmin, async (c) => {
   const body = await c.req.json<{
     cropId: string;
     name: string;
@@ -184,7 +250,7 @@ agricultureRouter.post("/diseases", async (c) => {
 });
 
 // Delete a catalog entry and its UploadThing image (if any) together.
-agricultureRouter.delete("/diseases/:id", async (c) => {
+agricultureRouter.delete("/diseases/:id", requireAdmin, async (c) => {
   const id = c.req.param("id");
   const db = getDb(c.env.DB);
 

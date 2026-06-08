@@ -1,3 +1,6 @@
 # Copy to .dev.vars (gitignored) and fill in real values for local dev.
-# In production set these with: wrangler secret put UPLOADTHING_TOKEN
+# In production set these with: wrangler secret put <NAME>
 UPLOADTHING_TOKEN=''
+# Shared admin secret. No user accounts exist; only holders of this token can
+# mutate data. Generate a strong random value for production.
+ADMIN_TOKEN=''

@@ -35,9 +35,19 @@ This is the central constraint the whole codebase is organized around:
 - **Data models support cross-module linking** so future modules can reference shared
   entities (users, districts) without coupling to each other.
 
-When adding functionality, first decide: is it a *core* capability (user, district,
-notifications, search, analytics, plugin registry) or a *module* capability? Core lives in
-`packages/core`; everything domain-specific lives under `packages/modules/<name>`.
+When adding functionality, first decide: is it a *core* capability (district, search,
+analytics, plugin registry, auth) or a *module* capability? Core lives in `packages/core`;
+everything domain-specific lives under `packages/modules/<name>`.
+
+## Access model (no user accounts)
+
+This is a free public service with **no end-user accounts and no notifications**. The public
+is **anonymous and read-only**; they browse data and use stateless calculators (e.g. the
+growth timeline). Only an **admin** can mutate data, authenticated by a shared `ADMIN_TOKEN`
+(no login/users table). Apply `requireAdmin` from `@karots/core` to every mutating
+(POST/PUT/PATCH/DELETE) route; GET routes stay public. The token is sent as
+`Authorization: Bearer <ADMIN_TOKEN>`; `GET /admin/me` lets a client validate it. The `users`
+table exists but is currently unused — keep new features account-free unless this changes.
 
 ## Stack & bindings (Cloudflare full-stack, TypeScript)
 
@@ -78,8 +88,8 @@ apps/web                       React PWA (not created yet)
 packages/core                  ModuleRegistry, KarotsModule contract, AppBindings/AppEnv
 packages/db                    getDb(d1) factory, core schema (users, districts),
                                drizzle.config (aggregates all schemas), migrations/
-packages/modules/agriculture   crops + market_prices + diseases schema, Hono router,
-                               module def, UploadThing helper
+packages/modules/agriculture   crops + crop_stages + market_prices + diseases schema,
+                               Hono router, growth-timeline calc, UploadThing helper
 packages/modules/weather       Open-Meteo client, current+forecast routes by district,
                                KV cache, farming-risk flags (NO db table — reads core districts)
 packages/ui                    shared components (not created yet)
@@ -98,7 +108,8 @@ To add one:
 1. Define its **Drizzle schema** in the module (`schema.ts`); district-scope localized
    entities by referencing `districts`.
 2. Build a **Hono router** typed `Hono<AppEnv>` (import `AppEnv` from `@karots/core`,
-   `getDb` from `@karots/db`). Paths are relative to the module's `basePath`.
+   `getDb` from `@karots/db`). Paths are relative to the module's `basePath`. Guard every
+   mutating route with `requireAdmin` (see Access model).
 3. Export the `KarotsModule` from the package `index.ts`.
 4. Register it in the composition root: add `.register(<module>)` in `apps/api/src/index.ts`.
 5. Add the module's `schema.ts` path to the `schema` array in
@@ -119,6 +130,7 @@ Run from the repo root unless noted:
   each module's schema, and writes SQL to `packages/db/migrations/`.
 - **Apply migrations locally**: `bun run db:apply:local`
 - **Apply migrations to remote D1**: `bun run db:apply:remote`
+- **Seed 25 Sri Lanka districts** (idempotent): `bun run seed:districts:local` (or `:remote`)
 - **Deploy**: `bun run deploy`
 - **Regenerate Env types from bindings**: `bun run --cwd apps/api cf-typegen` (`wrangler types`)
 

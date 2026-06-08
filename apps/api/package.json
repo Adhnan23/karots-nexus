@@ -8,7 +8,9 @@
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
     "db:apply:local": "wrangler d1 migrations apply karots-nexus --local",
-    "db:apply:remote": "wrangler d1 migrations apply karots-nexus --remote"
+    "db:apply:remote": "wrangler d1 migrations apply karots-nexus --remote",
+    "seed:districts:local": "wrangler d1 execute karots-nexus --local --file ../../packages/db/seeds/districts_lk.sql",
+    "seed:districts:remote": "wrangler d1 execute karots-nexus --remote --file ../../packages/db/seeds/districts_lk.sql"
   },
   "dependencies": {
     "@karots/agriculture": "workspace:*",

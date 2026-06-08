@@ -11,10 +11,12 @@ export const agricultureModule: KarotsModule = {
   router: agricultureRouter,
 };
 
-export { crops, marketPrices, diseases, ITEM_TYPES, DISEASE_KINDS } from "./schema";
+export { crops, cropStages, marketPrices, diseases, ITEM_TYPES, DISEASE_KINDS } from "./schema";
 export type {
   Crop,
   NewCrop,
+  CropStage,
+  NewCropStage,
   MarketPrice,
   NewMarketPrice,
   Disease,
@@ -23,3 +25,5 @@ export type {
   DiseaseKind,
 } from "./schema";
 export { getUploadThing } from "./storage";
+export { buildTimeline } from "./timeline";
+export type { GrowthTimeline, StageView } from "./timeline";

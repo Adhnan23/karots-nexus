@@ -90,8 +90,33 @@ export const diseases = sqliteTable(
   (t) => [index("diseases_crop_idx").on(t.cropId)],
 );
 
+/**
+ * Growth stages for a crop, measured in days from planting (plan.md "growth
+ * timeline" / "Farm Planning"). A guest supplies their own planting date and the
+ * timeline route maps these day offsets to absolute dates so they can compare
+ * their real plants against where the crop *should* be.
+ */
+export const cropStages = sqliteTable(
+  "crop_stages",
+  {
+    id: text("id").primaryKey(),
+    cropId: text("crop_id")
+      .notNull()
+      .references(() => crops.id),
+    name: text("name").notNull(),
+    /** Days from planting when this stage begins / ends (inclusive). */
+    startDay: integer("start_day").notNull(),
+    endDay: integer("end_day").notNull(),
+    description: text("description"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [index("crop_stages_crop_idx").on(t.cropId, t.startDay)],
+);
+
 export type Crop = typeof crops.$inferSelect;
 export type NewCrop = typeof crops.$inferInsert;
+export type CropStage = typeof cropStages.$inferSelect;
+export type NewCropStage = typeof cropStages.$inferInsert;
 export type MarketPrice = typeof marketPrices.$inferSelect;
 export type NewMarketPrice = typeof marketPrices.$inferInsert;
 export type Disease = typeof diseases.$inferSelect;

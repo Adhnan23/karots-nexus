@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { ModuleRegistry, type AppEnv } from "@karots/core";
+import { ModuleRegistry, requireAdmin, type AppEnv } from "@karots/core";
 import { agricultureModule } from "@karots/agriculture";
 import { weatherModule } from "@karots/weather";
 
@@ -23,6 +23,9 @@ app.get("/health", (c) =>
     modules: registry.list().map((m) => ({ name: m.name, basePath: m.basePath })),
   }),
 );
+
+// Lets an admin client (e.g. the admin panel) verify its token is valid.
+app.get("/admin/me", requireAdmin, (c) => c.json({ admin: true }));
 
 registry.mountAll(app);
 

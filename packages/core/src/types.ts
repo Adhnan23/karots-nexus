@@ -12,6 +12,11 @@ export interface AppBindings {
   CACHE: KVNamespace;
   /** UploadThing API token (secret) — image/asset uploads. No R2 binding. */
   UPLOADTHING_TOKEN: string;
+  /**
+   * Shared secret for admin actions (secret). There are no user accounts — the
+   * public is anonymous/read-only; only holders of this token may mutate data.
+   */
+  ADMIN_TOKEN: string;
 }
 
 /** Hono environment shape used across the app and all module routers. */

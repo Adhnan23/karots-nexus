@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "bun run --cwd packages/db generate",
     "db:apply:local": "bun run --cwd apps/api db:apply:local",
-    "db:apply:remote": "bun run --cwd apps/api db:apply:remote"
+    "db:apply:remote": "bun run --cwd apps/api db:apply:remote",
+    "seed:districts:local": "bun run --cwd apps/api seed:districts:local",
+    "seed:districts:remote": "bun run --cwd apps/api seed:districts:remote"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",

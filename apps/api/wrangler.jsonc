@@ -26,5 +26,7 @@
       "id": "REPLACE_WITH_KV_NAMESPACE_ID"
     }
   ]
-  // UPLOADTHING_TOKEN is a secret: .dev.vars locally, `wrangler secret put` in prod.
+  // UPLOADTHING_TOKEN and ADMIN_TOKEN are secrets: .dev.vars locally,
+  // `wrangler secret put` in prod. There are no user accounts — the public is
+  // read-only; ADMIN_TOKEN gates all mutating routes.
 }
