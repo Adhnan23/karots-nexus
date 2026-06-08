@@ -1,0 +1,25 @@
+{
+  "name": "karots-nexus",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/modules/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd apps/api dev",
+    "deploy": "bun run --cwd apps/api deploy",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "bun run --cwd packages/db generate",
+    "db:apply:local": "bun run --cwd apps/api db:apply:local",
+    "db:apply:remote": "bun run --cwd apps/api db:apply:remote"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "drizzle-kit": "latest",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.98.0"
+  }
+}

@@ -1,0 +1,3 @@
+# Copy to .dev.vars (gitignored) and fill in real values for local dev.
+# In production set these with: wrangler secret put UPLOADTHING_TOKEN
+UPLOADTHING_TOKEN=''

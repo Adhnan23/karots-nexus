@@ -1,0 +1,23 @@
+{
+  "name": "@karots/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "db:apply:local": "wrangler d1 migrations apply karots-nexus --local",
+    "db:apply:remote": "wrangler d1 migrations apply karots-nexus --remote"
+  },
+  "dependencies": {
+    "@karots/agriculture": "workspace:*",
+    "@karots/core": "workspace:*",
+    "@karots/db": "workspace:*",
+    "hono": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "wrangler": "^4.98.0"
+  }
+}

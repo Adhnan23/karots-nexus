@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Secrets / local env
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+
+# Wrangler / build
+.wrangler/
+dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+bun-debug.log*
+
+# OS
+.DS_Store
