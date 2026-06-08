@@ -56,6 +56,15 @@ notifications, search, analytics, plugin registry) or a *module* capability? Cor
 - **Frontend** — React + Vite PWA, Tailwind + shadcn/ui (mobile-first, dashboard-centric,
   offline-friendly).
 
+## Domain context & external data
+
+Target market is **Sri Lanka**: prices are in **LKR**, locations use the district hierarchy.
+- **Weather** — Open-Meteo (free, no API key, CC BY 4.0). Called by the weather module using
+  a district's `latitude`/`longitude`; responses cached in KV for 30 min.
+- **Market prices** — there is **no free public API** for Sri Lankan daily prices (HARTI/DOA/
+  CBSL publish only HTML/PDF; data.gov.lk CKAN has an expired cert). Prices are entered
+  manually via `POST /agriculture/prices`. A scheduled scraper is a possible future module.
+
 ## Repository layout
 
 Bun workspaces. `@karots/*` packages resolve via workspace symlinks; their `exports`
@@ -69,7 +78,10 @@ apps/web                       React PWA (not created yet)
 packages/core                  ModuleRegistry, KarotsModule contract, AppBindings/AppEnv
 packages/db                    getDb(d1) factory, core schema (users, districts),
                                drizzle.config (aggregates all schemas), migrations/
-packages/modules/agriculture   crops schema + Hono router + module def + UploadThing helper
+packages/modules/agriculture   crops + market_prices + diseases schema, Hono router,
+                               module def, UploadThing helper
+packages/modules/weather       Open-Meteo client, current+forecast routes by district,
+                               KV cache, farming-risk flags (NO db table — reads core districts)
 packages/ui                    shared components (not created yet)
 ```
 

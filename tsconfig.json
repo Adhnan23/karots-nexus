@@ -27,6 +27,9 @@
       ],
       "@karots/agriculture": [
         "packages/modules/agriculture/src/index.ts"
+      ],
+      "@karots/weather": [
+        "packages/modules/weather/src/index.ts"
       ]
     }
   },

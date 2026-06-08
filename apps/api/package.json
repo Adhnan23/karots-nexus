@@ -14,6 +14,7 @@
     "@karots/agriculture": "workspace:*",
     "@karots/core": "workspace:*",
     "@karots/db": "workspace:*",
+    "@karots/weather": "workspace:*",
     "hono": "latest"
   },
   "devDependencies": {

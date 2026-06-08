@@ -18,6 +18,7 @@
         "@karots/agriculture": "workspace:*",
         "@karots/core": "workspace:*",
         "@karots/db": "workspace:*",
+        "@karots/weather": "workspace:*",
         "hono": "latest",
       },
       "devDependencies": {
@@ -51,6 +52,16 @@
         "drizzle-orm": "latest",
         "hono": "latest",
         "uploadthing": "latest",
+      },
+    },
+    "packages/modules/weather": {
+      "name": "@karots/weather",
+      "version": "0.0.0",
+      "dependencies": {
+        "@karots/core": "workspace:*",
+        "@karots/db": "workspace:*",
+        "drizzle-orm": "latest",
+        "hono": "latest",
       },
     },
   },
@@ -198,6 +209,8 @@
     "@karots/core": ["@karots/core@workspace:packages/core"],
 
     "@karots/db": ["@karots/db@workspace:packages/db"],
+
+    "@karots/weather": ["@karots/weather@workspace:packages/modules/weather"],
 
     "@msgpackr-extract/msgpackr-extract-darwin-arm64": ["@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ=="],
 

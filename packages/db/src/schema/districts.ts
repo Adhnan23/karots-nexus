@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 
 /**
  * Core location hierarchy: country -> district -> local area.
@@ -13,6 +13,9 @@ export const districts = sqliteTable(
     country: text("country").notNull(),
     district: text("district").notNull(),
     localArea: text("local_area"),
+    /** Centroid coordinates, used for geo lookups like weather. */
+    latitude: real("latitude"),
+    longitude: real("longitude"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
