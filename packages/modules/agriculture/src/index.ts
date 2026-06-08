@@ -11,6 +11,15 @@ export const agricultureModule: KarotsModule = {
   router: agricultureRouter,
 };
 
-export { crops } from "./schema";
-export type { Crop, NewCrop } from "./schema";
+export { crops, marketPrices, diseases, ITEM_TYPES, DISEASE_KINDS } from "./schema";
+export type {
+  Crop,
+  NewCrop,
+  MarketPrice,
+  NewMarketPrice,
+  Disease,
+  NewDisease,
+  ItemType,
+  DiseaseKind,
+} from "./schema";
 export { getUploadThing } from "./storage";
