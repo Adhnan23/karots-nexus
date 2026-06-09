@@ -13,5 +13,6 @@ export default defineConfig({
   schema: [
     "./src/schema/index.ts",
     "../modules/agriculture/src/schema.ts",
+    "../modules/knowledge/src/schema.ts",
   ],
 });

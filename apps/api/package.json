@@ -14,12 +14,15 @@
     "seed:crops:local": "wrangler d1 execute karots-nexus --local --file ../../packages/db/seeds/crops_lk.sql",
     "seed:crops:remote": "wrangler d1 execute karots-nexus --remote --file ../../packages/db/seeds/crops_lk.sql",
     "seed:diseases:local": "wrangler d1 execute karots-nexus --local --file ../../packages/db/seeds/diseases_lk.sql",
-    "seed:diseases:remote": "wrangler d1 execute karots-nexus --remote --file ../../packages/db/seeds/diseases_lk.sql"
+    "seed:diseases:remote": "wrangler d1 execute karots-nexus --remote --file ../../packages/db/seeds/diseases_lk.sql",
+    "seed:knowledge:local": "wrangler d1 execute karots-nexus --local --file ../../packages/db/seeds/knowledge_lk.sql",
+    "seed:knowledge:remote": "wrangler d1 execute karots-nexus --remote --file ../../packages/db/seeds/knowledge_lk.sql"
   },
   "dependencies": {
     "@karots/agriculture": "workspace:*",
     "@karots/core": "workspace:*",
     "@karots/db": "workspace:*",
+    "@karots/knowledge": "workspace:*",
     "@karots/weather": "workspace:*",
     "hono": "latest"
   },

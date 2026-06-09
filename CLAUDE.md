@@ -10,8 +10,10 @@ months, suitable districts, water need, expected yield, climate/soil notes, farm
 plus crop stages, market prices, disease/pest catalog — all GET public, mutations
 admin-only), stateless calculators (growth timeline, profitability), a farming decision
 engine (`GET /agriculture/recommendations?districtId=` → best-to-plant-now / high-profit /
-low-risk by district + season + price trend), localized seed data (25 SL districts, 5
-enriched crops + stages, 10 disease/pest entries), and a weather module on Open-Meteo.
+low-risk by district + season + price trend), a knowledge base module (localized farming
+guides/articles — public read, admin CRUD), localized seed data (25 SL districts, 5
+enriched crops + stages, 10 disease/pest entries, 5 knowledge articles), and a weather
+module on Open-Meteo.
 Symptom search and recommendation reasons span all three languages. The decision engine is
 deliberately weather-agnostic (modules stay decoupled); its pure scorer exposes an optional
 `risks` seam for wiring weather in later. The full product/vision spec lives in `plan.md` —
@@ -110,10 +112,12 @@ packages/core                  ModuleRegistry, KarotsModule contract, AppBinding
 packages/db                    getDb(d1) factory, core schema (users, districts),
                                drizzle.config (aggregates all schemas), migrations/
 packages/modules/agriculture   crops + crop_stages + market_prices + diseases schema,
-                               Hono router, growth-timeline + profitability calcs,
-                               UploadThing helper
+                               Hono router, growth-timeline + profitability + decision-engine
+                               (recommendations) calcs, UploadThing helper
 packages/modules/weather       Open-Meteo client, current+forecast routes by district,
                                KV cache, farming-risk flags (NO db table — reads core districts)
+packages/modules/knowledge     articles schema (localized guides/articles, soft crop link),
+                               Hono router (public read + admin CRUD), UploadThing helper
 packages/ui                    shared components (not created yet)
 ```
 

@@ -30,6 +30,9 @@
       ],
       "@karots/weather": [
         "packages/modules/weather/src/index.ts"
+      ],
+      "@karots/knowledge": [
+        "packages/modules/knowledge/src/index.ts"
       ]
     }
   },

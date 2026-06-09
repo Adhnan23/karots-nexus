@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { ModuleRegistry, requireAdmin, type AppEnv } from "@karots/core";
 import { agricultureModule } from "@karots/agriculture";
 import { weatherModule } from "@karots/weather";
+import { knowledgeModule } from "@karots/knowledge";
 
 /**
  * Composition root. This is the ONLY place that knows about concrete modules:
@@ -13,7 +14,8 @@ import { weatherModule } from "@karots/weather";
  */
 const registry = new ModuleRegistry()
   .register(agricultureModule)
-  .register(weatherModule);
+  .register(weatherModule)
+  .register(knowledgeModule);
 
 const app = new Hono<AppEnv>();
 

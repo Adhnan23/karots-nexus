@@ -21,7 +21,9 @@
     "seed:crops:remote": "bun run --cwd apps/api seed:crops:remote",
     "seed:diseases:local": "bun run --cwd apps/api seed:diseases:local",
     "seed:diseases:remote": "bun run --cwd apps/api seed:diseases:remote",
-    "seed:local": "bun run seed:districts:local && bun run seed:crops:local && bun run seed:diseases:local"
+    "seed:knowledge:local": "bun run --cwd apps/api seed:knowledge:local",
+    "seed:knowledge:remote": "bun run --cwd apps/api seed:knowledge:remote",
+    "seed:local": "bun run seed:districts:local && bun run seed:crops:local && bun run seed:diseases:local && bun run seed:knowledge:local"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
