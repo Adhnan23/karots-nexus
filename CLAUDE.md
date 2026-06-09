@@ -16,8 +16,19 @@ enriched crops + stages, 10 disease/pest entries, 5 knowledge articles), and a w
 module on Open-Meteo.
 Symptom search, knowledge search, and recommendation reasons span all three languages. The
 decision engine's `lowRisk` lens is weather-aware via a core *capability* (the weather module
-provides `districtRisks`; the two modules never import each other). The full product/vision
-spec lives in `plan.md` — many of its features are not built yet.
+provides `districtRisks`; the two modules never import each other).
+
+There is now a **React PWA frontend** (`apps/web`): Vite + React + TS, Tailwind v3 +
+shadcn-style components, react-router, vite-plugin-pwa (installable, offline app shell). It
+covers crop browse (list + detail) and **My Plantings** — a *client-side-only* tracker
+(localStorage, no account, no server state): "I planted this" saves a planting and the
+progress screen renders the stateless growth timeline (live online, recomputed from cached
+stages offline). i18n is a React `LangProvider` (en/si/ta, persisted); the `Localized` type
+is **redeclared locally** in the web app (not imported from `@karots/core`) so server/
+Cloudflare-typed core code never enters the browser bundle or typecheck. Dev uses a Vite
+proxy to the Worker (:8787), so no CORS; prod serving via Workers static assets is planned,
+not wired. Many other screens (dashboard/district picker, weather, prices, recommendations,
+knowledge browse, admin panel) and most of the `plan.md` vision are not built yet.
 
 Toolchain: **Bun** (package manager + scripts), Cloudflare Workers runtime via Wrangler.
 A global `wrangler` (4.87.0) is on PATH but is older than the workspace-pinned 4.98.0 — always
@@ -113,7 +124,12 @@ point directly at `src/*.ts` (Wrangler/esbuild bundle TS, so no build step betwe
 apps/api                       Hono Worker — composition root: registers + mounts modules
   src/index.ts                 ModuleRegistry wiring, /health
   wrangler.jsonc               bindings (DB, CACHE); UPLOADTHING_TOKEN via .dev.vars/secret
-apps/web                       React PWA (not created yet)
+apps/web                       React PWA — Vite, Tailwind, react-router, vite-plugin-pwa
+  src/i18n                     LangProvider (en/si/ta), local Localized type + localize
+  src/api                      typed fetch client + localStorage cache
+  src/plantings                client-side-only planting store (localStorage, no account)
+  src/pages                    CropList, CropDetail, MyPlantings, PlantingProgress
+  vite.config.ts               dev proxy of API prefixes → Worker :8787 (no CORS)
 packages/core                  ModuleRegistry, KarotsModule contract, AppBindings/AppEnv
 packages/db                    getDb(d1) factory, core schema (users, districts),
                                drizzle.config (aggregates all schemas), migrations/
