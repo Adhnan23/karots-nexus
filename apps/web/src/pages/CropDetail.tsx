@@ -39,7 +39,7 @@ export function CropDetail() {
 
   return (
     <div className="space-y-4">
-      <Link to="/" className="text-sm text-muted-foreground">
+      <Link to="/crops" className="text-sm text-muted-foreground">
         ← {t("back")}
       </Link>
 

@@ -19,16 +19,21 @@ decision engine's `lowRisk` lens is weather-aware via a core *capability* (the w
 provides `districtRisks`; the two modules never import each other).
 
 There is now a **React PWA frontend** (`apps/web`): Vite + React + TS, Tailwind v3 +
-shadcn-style components, react-router, vite-plugin-pwa (installable, offline app shell). It
-covers crop browse (list + detail) and **My Plantings** — a *client-side-only* tracker
-(localStorage, no account, no server state): "I planted this" saves a planting and the
-progress screen renders the stateless growth timeline (live online, recomputed from cached
-stages offline). i18n is a React `LangProvider` (en/si/ta, persisted); the `Localized` type
-is **redeclared locally** in the web app (not imported from `@karots/core`) so server/
-Cloudflare-typed core code never enters the browser bundle or typecheck. Dev uses a Vite
-proxy to the Worker (:8787), so no CORS; prod serving via Workers static assets is planned,
-not wired. Many other screens (dashboard/district picker, weather, prices, recommendations,
-knowledge browse, admin panel) and most of the `plan.md` vision are not built yet.
+shadcn-style components, react-router, vite-plugin-pwa (installable, offline app shell). The
+landing page is a **hub/dashboard** (district picker + weather snapshot + best-to-plant +
+explore tiles), with screens for crop browse (list + detail), weather (current + 7-day +
+risks), recommendations (best-to-plant / high-profit / low-risk), market prices, and the
+knowledge base (category filter + search + article). A global **selected district** is
+persisted in localStorage and drives every district-scoped screen. **My Plantings** is a
+*client-side-only* tracker (localStorage, no account, no server state): "I planted this"
+saves a planting and the progress screen renders the stateless growth timeline (live online,
+recomputed from cached stages offline). i18n is a React `LangProvider` (en/si/ta, persisted);
+the `Localized` type is **redeclared locally** in the web app (not imported from
+`@karots/core`) so server/Cloudflare-typed core code never enters the browser bundle or
+typecheck. The web client calls the API under `/api`; dev uses a Vite proxy of `/api` →
+Worker (:8787), so no CORS and SPA routes never collide with the API. Prod serving via
+Workers static assets (Worker owns `/api/*`, SPA for everything else) is planned, not wired.
+An admin panel and most of the `plan.md` vision are not built yet.
 
 Toolchain: **Bun** (package manager + scripts), Cloudflare Workers runtime via Wrangler.
 A global `wrangler` (4.87.0) is on PATH but is older than the workspace-pinned 4.98.0 — always
@@ -122,14 +127,16 @@ point directly at `src/*.ts` (Wrangler/esbuild bundle TS, so no build step betwe
 
 ```
 apps/api                       Hono Worker — composition root: registers + mounts modules
-  src/index.ts                 ModuleRegistry wiring, /health
+  src/index.ts                 ModuleRegistry wiring under /api; /api/health, /api/districts
   wrangler.jsonc               bindings (DB, CACHE); UPLOADTHING_TOKEN via .dev.vars/secret
 apps/web                       React PWA — Vite, Tailwind, react-router, vite-plugin-pwa
   src/i18n                     LangProvider (en/si/ta), local Localized type + localize
-  src/api                      typed fetch client + localStorage cache
+  src/api                      typed fetch client (all paths under /api) + localStorage cache
+  src/district                 selected-district store (localStorage) + useDistricts hook
   src/plantings                client-side-only planting store (localStorage, no account)
-  src/pages                    CropList, CropDetail, MyPlantings, PlantingProgress
-  vite.config.ts               dev proxy of API prefixes → Worker :8787 (no CORS)
+  src/pages                    Hub, CropList, CropDetail, Weather, Recommendations, Prices,
+                               Knowledge, Article, MyPlantings, PlantingProgress
+  vite.config.ts               dev proxy of /api → Worker :8787 (no CORS)
 packages/core                  ModuleRegistry, KarotsModule contract, AppBindings/AppEnv
 packages/db                    getDb(d1) factory, core schema (users, districts),
                                drizzle.config (aggregates all schemas), migrations/
@@ -192,6 +199,11 @@ Tests: none yet — no test runner is wired in.
 `wrangler secret put UPLOADTHING_TOKEN`. Local dev works without these.
 
 ### Smoke test
-`curl localhost:8787/health` → lists registered modules.
-`curl -X POST localhost:8787/agriculture/crops -d '{"name":"Tomato"}'` then
-`curl localhost:8787/agriculture/crops`.
+The **entire API is mounted under `/api`** (so SPA client routes like `/weather` never
+collide with the weather module's API). Module routers still use their own basePaths
+relative to `/api` (e.g. `/api/agriculture/...`, `/api/weather`, `/api/knowledge`). Core
+extras live there too: `/api/health`, `/api/districts` (public, district picker),
+`/api/admin/me`.
+`curl localhost:8787/api/health` → lists registered modules.
+`curl -X POST localhost:8787/api/agriculture/crops -d '{"name":"Tomato"}'` then
+`curl localhost:8787/api/agriculture/crops`.

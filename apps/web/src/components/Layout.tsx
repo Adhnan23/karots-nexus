@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 export function Layout() {
   const { t } = useLang();
 
-  const tab = (to: string, label: string) => (
+  const tab = (to: string, label: string, icon: string, end = false) => (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }) =>
         cn(
           "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium",
@@ -17,6 +18,7 @@ export function Layout() {
         )
       }
     >
+      <span className="text-lg leading-none">{icon}</span>
       {label}
     </NavLink>
   );
@@ -35,8 +37,10 @@ export function Layout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full max-w-screen-sm border-t bg-background">
-        {tab("/", t("navCrops"))}
-        {tab("/plantings", t("navMyPlantings"))}
+        {tab("/", t("navHome"), "🏠", true)}
+        {tab("/crops", t("navCrops"), "🌱")}
+        {tab("/knowledge", t("navKnowledge"), "📖")}
+        {tab("/plantings", t("navMyPlantings"), "🪴")}
       </nav>
     </div>
   );

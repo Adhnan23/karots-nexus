@@ -2,12 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-// API path prefixes owned by the Worker. In dev they are proxied to the local
-// Worker (:8787) so the SPA and API share an origin and need no CORS.
-const API_PREFIXES = ["/agriculture", "/weather", "/knowledge", "/districts", "/health", "/admin"];
-const proxy = Object.fromEntries(
-  API_PREFIXES.map((p) => [p, { target: "http://localhost:8787", changeOrigin: true }]),
-);
+// The whole API is under `/api` (Worker), so in dev we proxy just that one
+// prefix to the local Worker (:8787) — the SPA and API share an origin (no
+// CORS), and SPA client routes like `/weather` never collide with the API.
+const proxy = {
+  "/api": { target: "http://localhost:8787", changeOrigin: true },
+};
 
 export default defineConfig({
   resolve: {
