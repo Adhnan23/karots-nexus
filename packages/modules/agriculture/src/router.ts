@@ -61,6 +61,61 @@ agricultureRouter.post("/crops", requireAdmin, async (c) => {
   return c.json({ crop: created }, 201);
 });
 
+agricultureRouter.get("/crops/:id", async (c) => {
+  const db = getDb(c.env.DB);
+  const [crop] = await db.select().from(crops).where(eq(crops.id, c.req.param("id")));
+  if (!crop) return c.json({ error: "crop not found" }, 404);
+  return c.json({ crop });
+});
+
+agricultureRouter.patch("/crops/:id", requireAdmin, async (c) => {
+  const body = await c.req.json<{
+    name?: Localized;
+    category?: Localized;
+    cultivationDurationDays?: number;
+    seedPriceMin?: number;
+    seedPriceMax?: number;
+    imageUrl?: string;
+  }>();
+
+  if (body.name !== undefined && !isLocalized(body.name)) {
+    return c.json({ error: "name must be { en, si?, ta? }" }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+  const [updated] = await db
+    .update(crops)
+    .set(body)
+    .where(eq(crops.id, c.req.param("id")))
+    .returning();
+
+  if (!updated) return c.json({ error: "crop not found" }, 404);
+  return c.json({ crop: updated });
+});
+
+// Delete a crop and everything that depends on it (stages, diseases + their
+// UploadThing images); detach price observations (cropId is nullable).
+agricultureRouter.delete("/crops/:id", requireAdmin, async (c) => {
+  const id = c.req.param("id");
+  const db = getDb(c.env.DB);
+
+  const [crop] = await db.select().from(crops).where(eq(crops.id, id));
+  if (!crop) return c.json({ error: "crop not found" }, 404);
+
+  const cropDiseases = await db.select().from(diseases).where(eq(diseases.cropId, id));
+  const imageKeys = cropDiseases.map((d) => d.imageKey).filter((k): k is string => !!k);
+  if (imageKeys.length > 0) {
+    await getUploadThing(c.env.UPLOADTHING_TOKEN).deleteFiles(imageKeys);
+  }
+
+  await db.delete(diseases).where(eq(diseases.cropId, id));
+  await db.delete(cropStages).where(eq(cropStages.cropId, id));
+  await db.update(marketPrices).set({ cropId: null }).where(eq(marketPrices.cropId, id));
+  await db.delete(crops).where(eq(crops.id, id));
+
+  return c.json({ deleted: id });
+});
+
 /* --------------------- Crop growth stages ------------------------ */
 
 // Admin: define a growth stage for a crop (day offsets from planting).
@@ -99,6 +154,42 @@ agricultureRouter.get("/crops/:cropId/stages", async (c) => {
     .where(eq(cropStages.cropId, c.req.param("cropId")))
     .orderBy(cropStages.startDay);
   return c.json({ stages: rows });
+});
+
+// Admin: update a stage.
+agricultureRouter.patch("/crops/:cropId/stages/:stageId", requireAdmin, async (c) => {
+  const body = await c.req.json<{
+    name?: Localized;
+    startDay?: number;
+    endDay?: number;
+    description?: Localized;
+    sortOrder?: number;
+  }>();
+
+  if (body.name !== undefined && !isLocalized(body.name)) {
+    return c.json({ error: "name must be { en, si?, ta? }" }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+  const [updated] = await db
+    .update(cropStages)
+    .set(body)
+    .where(and(eq(cropStages.id, c.req.param("stageId")), eq(cropStages.cropId, c.req.param("cropId"))))
+    .returning();
+
+  if (!updated) return c.json({ error: "stage not found" }, 404);
+  return c.json({ stage: updated });
+});
+
+// Admin: delete a stage.
+agricultureRouter.delete("/crops/:cropId/stages/:stageId", requireAdmin, async (c) => {
+  const db = getDb(c.env.DB);
+  const [deleted] = await db
+    .delete(cropStages)
+    .where(and(eq(cropStages.id, c.req.param("stageId")), eq(cropStages.cropId, c.req.param("cropId"))))
+    .returning();
+  if (!deleted) return c.json({ error: "stage not found" }, 404);
+  return c.json({ deleted: deleted.id });
 });
 
 // Public calculator: given a planting date, project stages onto real dates and
@@ -200,6 +291,17 @@ agricultureRouter.post("/prices", requireAdmin, async (c) => {
     .returning();
 
   return c.json({ price: created }, 201);
+});
+
+// Admin: delete a single price observation.
+agricultureRouter.delete("/prices/:id", requireAdmin, async (c) => {
+  const db = getDb(c.env.DB);
+  const [deleted] = await db
+    .delete(marketPrices)
+    .where(eq(marketPrices.id, c.req.param("id")))
+    .returning();
+  if (!deleted) return c.json({ error: "price not found" }, 404);
+  return c.json({ deleted: deleted.id });
 });
 
 /* ----------------------- Profitability --------------------------- */
@@ -304,6 +406,43 @@ agricultureRouter.post("/diseases", requireAdmin, async (c) => {
     .returning();
 
   return c.json({ disease: created }, 201);
+});
+
+agricultureRouter.get("/diseases/:id", async (c) => {
+  const db = getDb(c.env.DB);
+  const [disease] = await db.select().from(diseases).where(eq(diseases.id, c.req.param("id")));
+  if (!disease) return c.json({ error: "disease not found" }, 404);
+  return c.json({ disease });
+});
+
+agricultureRouter.patch("/diseases/:id", requireAdmin, async (c) => {
+  const body = await c.req.json<{
+    name?: Localized;
+    kind?: DiseaseKind;
+    symptoms?: Localized;
+    causes?: Localized;
+    treatment?: Localized;
+    prevention?: Localized;
+    imageUrl?: string;
+    imageKey?: string;
+  }>();
+
+  if (body.name !== undefined && !isLocalized(body.name)) {
+    return c.json({ error: "name must be { en, si?, ta? }" }, 400);
+  }
+  if (body.kind !== undefined && !isDiseaseKind(body.kind)) {
+    return c.json({ error: "kind must be 'disease' or 'pest'" }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+  const [updated] = await db
+    .update(diseases)
+    .set(body)
+    .where(eq(diseases.id, c.req.param("id")))
+    .returning();
+
+  if (!updated) return c.json({ error: "disease not found" }, 404);
+  return c.json({ disease: updated });
 });
 
 // Delete a catalog entry and its UploadThing image (if any) together.
