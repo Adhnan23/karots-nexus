@@ -5,11 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Status
 
 Foundation scaffolded and verified booting. Active surface: the API Worker with a health
-route, a full-CRUD agriculture module (crops, crop stages, market prices, disease/pest
-catalog — all GET public, mutations admin-only), stateless calculators (growth timeline,
-profitability), localized seed data (25 SL districts, 5 crops + stages, 10 disease/pest
-entries), and a weather module on Open-Meteo. Symptom search spans all three languages.
-The full product/vision spec lives in `plan.md` — many of its features are not built yet.
+route, a full-CRUD agriculture module (crops with rich intelligence — seasons, planting
+months, suitable districts, water need, expected yield, climate/soil notes, farming guide;
+plus crop stages, market prices, disease/pest catalog — all GET public, mutations
+admin-only), stateless calculators (growth timeline, profitability), a farming decision
+engine (`GET /agriculture/recommendations?districtId=` → best-to-plant-now / high-profit /
+low-risk by district + season + price trend), localized seed data (25 SL districts, 5
+enriched crops + stages, 10 disease/pest entries), and a weather module on Open-Meteo.
+Symptom search and recommendation reasons span all three languages. The decision engine is
+deliberately weather-agnostic (modules stay decoupled); its pure scorer exposes an optional
+`risks` seam for wiring weather in later. The full product/vision spec lives in `plan.md` —
+many of its features are not built yet.
 
 Toolchain: **Bun** (package manager + scripts), Cloudflare Workers runtime via Wrangler.
 A global `wrangler` (4.87.0) is on PATH but is older than the workspace-pinned 4.98.0 — always

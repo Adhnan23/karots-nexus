@@ -9,12 +9,19 @@ import {
   diseases,
   ITEM_TYPES,
   DISEASE_KINDS,
+  GROWING_SEASONS,
+  WATER_REQUIREMENTS,
   type ItemType,
   type DiseaseKind,
+  type GrowingSeason,
+  type WaterRequirement,
+  type GuideStep,
 } from "./schema";
+import { districts } from "@karots/db/schema";
 import { getUploadThing } from "./storage";
 import { buildTimeline } from "./timeline";
 import { computeProfitability } from "./profitability";
+import { recommendCrops, type CropPriceTrend } from "./recommendations";
 
 /**
  * Agriculture HTTP routes. Mounted by the core registry under "/agriculture",
@@ -30,6 +37,68 @@ function isDiseaseKind(v: string | undefined): v is DiseaseKind {
   return !!v && (DISEASE_KINDS as readonly string[]).includes(v);
 }
 
+/** Shape of the enrichment fields shared by crop create/update. */
+type CropAgronomy = {
+  seasons?: GrowingSeason[];
+  plantingMonths?: number[];
+  suitableDistricts?: string[];
+  waterRequirement?: WaterRequirement;
+  expectedYieldKgPerAcre?: number;
+  climate?: Localized;
+  soil?: Localized;
+  guide?: GuideStep[];
+};
+
+/**
+ * Validate the optional agronomic/localized crop fields. Returns an error
+ * message string when something is malformed, or null when the (possibly
+ * partial) input is acceptable. Only fields that are present are checked, so it
+ * works for both create and patch.
+ */
+function validateCropAgronomy(b: CropAgronomy): string | null {
+  if (
+    b.seasons !== undefined &&
+    (!Array.isArray(b.seasons) ||
+      !b.seasons.every((s) => (GROWING_SEASONS as readonly string[]).includes(s)))
+  ) {
+    return `seasons must be an array of ${GROWING_SEASONS.join("|")}`;
+  }
+  if (
+    b.plantingMonths !== undefined &&
+    (!Array.isArray(b.plantingMonths) ||
+      !b.plantingMonths.every((m) => Number.isInteger(m) && m >= 1 && m <= 12))
+  ) {
+    return "plantingMonths must be an array of integers 1-12";
+  }
+  if (
+    b.suitableDistricts !== undefined &&
+    (!Array.isArray(b.suitableDistricts) ||
+      !b.suitableDistricts.every((d) => typeof d === "string"))
+  ) {
+    return "suitableDistricts must be an array of district ids";
+  }
+  if (
+    b.waterRequirement !== undefined &&
+    !(WATER_REQUIREMENTS as readonly string[]).includes(b.waterRequirement)
+  ) {
+    return `waterRequirement must be ${WATER_REQUIREMENTS.join("|")}`;
+  }
+  if (b.climate !== undefined && !isLocalized(b.climate)) {
+    return "climate must be { en, si?, ta? }";
+  }
+  if (b.soil !== undefined && !isLocalized(b.soil)) {
+    return "soil must be { en, si?, ta? }";
+  }
+  if (
+    b.guide !== undefined &&
+    (!Array.isArray(b.guide) ||
+      !b.guide.every((s) => s && isLocalized(s.title) && isLocalized(s.body)))
+  ) {
+    return "guide must be an array of { title, body } with localized text";
+  }
+  return null;
+}
+
 /* ----------------------------- Crops ----------------------------- */
 
 agricultureRouter.get("/crops", async (c) => {
@@ -39,18 +108,22 @@ agricultureRouter.get("/crops", async (c) => {
 });
 
 agricultureRouter.post("/crops", requireAdmin, async (c) => {
-  const body = await c.req.json<{
-    name: Localized;
-    category?: Localized;
-    cultivationDurationDays?: number;
-    seedPriceMin?: number;
-    seedPriceMax?: number;
-    imageUrl?: string;
-  }>();
+  const body = await c.req.json<
+    {
+      name: Localized;
+      category?: Localized;
+      cultivationDurationDays?: number;
+      seedPriceMin?: number;
+      seedPriceMax?: number;
+      imageUrl?: string;
+    } & CropAgronomy
+  >();
 
   if (!isLocalized(body?.name)) {
     return c.json({ error: "name is required as { en, si?, ta? }" }, 400);
   }
+  const agronomyError = validateCropAgronomy(body);
+  if (agronomyError) return c.json({ error: agronomyError }, 400);
 
   const db = getDb(c.env.DB);
   const [created] = await db
@@ -69,18 +142,22 @@ agricultureRouter.get("/crops/:id", async (c) => {
 });
 
 agricultureRouter.patch("/crops/:id", requireAdmin, async (c) => {
-  const body = await c.req.json<{
-    name?: Localized;
-    category?: Localized;
-    cultivationDurationDays?: number;
-    seedPriceMin?: number;
-    seedPriceMax?: number;
-    imageUrl?: string;
-  }>();
+  const body = await c.req.json<
+    {
+      name?: Localized;
+      category?: Localized;
+      cultivationDurationDays?: number;
+      seedPriceMin?: number;
+      seedPriceMax?: number;
+      imageUrl?: string;
+    } & CropAgronomy
+  >();
 
   if (body.name !== undefined && !isLocalized(body.name)) {
     return c.json({ error: "name must be { en, si?, ta? }" }, 400);
   }
+  const agronomyError = validateCropAgronomy(body);
+  if (agronomyError) return c.json({ error: agronomyError }, 400);
 
   const db = getDb(c.env.DB);
   const [updated] = await db
@@ -350,6 +427,49 @@ agricultureRouter.post("/profitability", async (c) => {
       marketPricePerKg: price as number,
     }),
   );
+});
+
+/* --------------------- Decision engine --------------------------- */
+
+// Public, stateless: rank crops for a district "right now" into bestToPlantNow /
+// highProfit / lowRisk. Inputs (crops + per-crop price trend) are gathered here
+// and scored by the pure recommendCrops(). Weather is intentionally not wired in
+// (modules stay decoupled) — see recommendations.ts `risks` seam.
+agricultureRouter.get("/recommendations", async (c) => {
+  const districtId = c.req.query("districtId");
+  if (!districtId) return c.json({ error: "districtId is required" }, 400);
+
+  const monthParam = c.req.query("month");
+  const month = monthParam ? Number(monthParam) : new Date().getUTCMonth() + 1;
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    return c.json({ error: "month must be an integer 1-12" }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+
+  const [district] = await db.select().from(districts).where(eq(districts.id, districtId));
+  if (!district) return c.json({ error: "unknown districtId" }, 404);
+
+  const allCrops = await db.select().from(crops);
+
+  // Build a per-crop price trend for this district: oldest→newest, then take the
+  // newest as `latest` and the one before it as `previous` (price per kg).
+  const priceRows = await db
+    .select()
+    .from(marketPrices)
+    .where(eq(marketPrices.districtId, districtId))
+    .orderBy(marketPrices.recordedAt);
+
+  const trendByCrop: Record<string, CropPriceTrend> = {};
+  for (const row of priceRows) {
+    if (!row.cropId) continue;
+    const value = row.retail ?? row.wholesale;
+    if (value == null) continue;
+    const prev = trendByCrop[row.cropId];
+    trendByCrop[row.cropId] = { latest: value, previous: prev ? prev.latest : null };
+  }
+
+  return c.json(recommendCrops({ crops: allCrops, trendByCrop, districtId, month }));
 });
 
 /* --------------------- Disease & pest catalog -------------------- */

@@ -43,6 +43,13 @@
       "when": 1780922895926,
       "tag": "0005_fancy_cable",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1780970941443,
+      "tag": "0006_certain_mulholland_black",
+      "breakpoints": true
     }
   ]
 }

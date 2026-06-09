@@ -11,7 +11,16 @@ export const agricultureModule: KarotsModule = {
   router: agricultureRouter,
 };
 
-export { crops, cropStages, marketPrices, diseases, ITEM_TYPES, DISEASE_KINDS } from "./schema";
+export {
+  crops,
+  cropStages,
+  marketPrices,
+  diseases,
+  ITEM_TYPES,
+  DISEASE_KINDS,
+  GROWING_SEASONS,
+  WATER_REQUIREMENTS,
+} from "./schema";
 export type {
   Crop,
   NewCrop,
@@ -23,9 +32,20 @@ export type {
   NewDisease,
   ItemType,
   DiseaseKind,
+  GrowingSeason,
+  WaterRequirement,
+  GuideStep,
 } from "./schema";
 export { getUploadThing } from "./storage";
 export { buildTimeline } from "./timeline";
 export type { GrowthTimeline, StageView } from "./timeline";
 export { computeProfitability } from "./profitability";
 export type { ProfitabilityInput, ProfitabilityResult } from "./profitability";
+export { recommendCrops } from "./recommendations";
+export type {
+  Recommendation,
+  CropRecommendations,
+  CropPriceTrend,
+  RecommendationInput,
+  WeatherRiskFlags,
+} from "./recommendations";

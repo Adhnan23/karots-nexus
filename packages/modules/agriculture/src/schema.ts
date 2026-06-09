@@ -3,10 +3,30 @@ import type { Localized } from "@karots/core";
 import { districts } from "@karots/db/schema";
 
 /**
- * Crop catalog — the agriculture module's core entity. See plan.md "Crop
- * Intelligence System" for the full intended field set; this is the starting
- * subset. User-facing text (`name`, `category`) is Localized (en/si/ta). Image
- * assets are stored in UploadThing; we keep only the file URL.
+ * Sri Lanka's two cultivation seasons (language-neutral keys; display names are
+ * resolved from a dictionary). Maha is the main NE-monsoon season; Yala the
+ * shorter SW-monsoon season. A crop's `plantingMonths` is the authoritative sow
+ * window; `seasons` is for grouping/display.
+ */
+export const GROWING_SEASONS = ["maha", "yala"] as const;
+export type GrowingSeason = (typeof GROWING_SEASONS)[number];
+
+export const WATER_REQUIREMENTS = ["low", "medium", "high"] as const;
+export type WaterRequirement = (typeof WATER_REQUIREMENTS)[number];
+
+/** One step of a crop's step-by-step farming guide (plan.md #1). */
+export interface GuideStep {
+  title: Localized;
+  body: Localized;
+}
+
+/**
+ * Crop catalog — the agriculture module's core entity (plan.md "Crop
+ * Intelligence System"). User-facing text (`name`, `category`, `climate`,
+ * `soil`, `guide`) is Localized (en/si/ta). The agronomic fields (`seasons`,
+ * `plantingMonths`, `suitableDistricts`, `waterRequirement`,
+ * `expectedYieldKgPerAcre`) feed the decision engine. Image assets are stored in
+ * UploadThing; we keep only the file URL.
  *
  * This table is OWNED by the agriculture module. It is referenced by the central
  * drizzle.config (build-time) for migration generation, and by this module's
@@ -22,6 +42,19 @@ export const crops = sqliteTable("crops", {
   seedPriceMax: real("seed_price_max"),
   /** UploadThing file URL for a healthy reference image. */
   imageUrl: text("image_url"),
+  /** Seasons this crop is grown in (subset of GROWING_SEASONS). */
+  seasons: text("seasons", { mode: "json" }).$type<GrowingSeason[]>(),
+  /** Authoritative sow window — calendar month numbers (1–12). */
+  plantingMonths: text("planting_months", { mode: "json" }).$type<number[]>(),
+  /** District ids the crop suits; null/empty = countrywide. */
+  suitableDistricts: text("suitable_districts", { mode: "json" }).$type<string[]>(),
+  /** Relative water need; matched against weather risks (phase-2 seam). */
+  waterRequirement: text("water_requirement", { enum: WATER_REQUIREMENTS }),
+  expectedYieldKgPerAcre: real("expected_yield_kg_per_acre"),
+  climate: text("climate", { mode: "json" }).$type<Localized>(),
+  soil: text("soil", { mode: "json" }).$type<Localized>(),
+  /** Step-by-step farming guide, edited as a whole. */
+  guide: text("guide", { mode: "json" }).$type<GuideStep[]>(),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
