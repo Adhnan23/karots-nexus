@@ -1,3 +1,5 @@
+import type { AppCapabilities } from "./capabilities";
+
 /**
  * Shared runtime bindings available to the API Worker and every module.
  *
@@ -22,4 +24,12 @@ export interface AppBindings {
 /** Hono environment shape used across the app and all module routers. */
 export interface AppEnv {
   Bindings: AppBindings;
+  /**
+   * Per-request context variables. `capabilities` is installed by the
+   * composition root (apps/api) before routers run, so it is always present;
+   * each capability inside it is optional (see AppCapabilities).
+   */
+  Variables: {
+    capabilities: AppCapabilities;
+  };
 }

@@ -469,7 +469,12 @@ agricultureRouter.get("/recommendations", async (c) => {
     trendByCrop[row.cropId] = { latest: value, previous: prev ? prev.latest : null };
   }
 
-  return c.json(recommendCrops({ crops: allCrops, trendByCrop, districtId, month }));
+  // District weather risk via the core capability (provided by the weather
+  // module). Optional — recommendations work without it; lowRisk just won't be
+  // weather-adjusted when no provider is registered or weather is unavailable.
+  const risks = (await c.var.capabilities?.districtRisks?.(c.env, districtId)) ?? undefined;
+
+  return c.json(recommendCrops({ crops: allCrops, trendByCrop, districtId, month, risks }));
 });
 
 /* --------------------- Disease & pest catalog -------------------- */

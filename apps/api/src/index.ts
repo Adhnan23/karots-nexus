@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { ModuleRegistry, requireAdmin, type AppEnv } from "@karots/core";
+import { ModuleRegistry, requireAdmin, type AppEnv, type AppCapabilities } from "@karots/core";
 import { agricultureModule } from "@karots/agriculture";
-import { weatherModule } from "@karots/weather";
+import { weatherModule, getDistrictRisks } from "@karots/weather";
 import { knowledgeModule } from "@karots/knowledge";
 
 /**
@@ -18,6 +18,15 @@ const registry = new ModuleRegistry()
   .register(knowledgeModule);
 
 const app = new Hono<AppEnv>();
+
+// Cross-module capabilities, wired here (the only place modules meet). The
+// weather module provides district risk to the agriculture decision engine
+// without either module importing the other.
+const capabilities: AppCapabilities = { districtRisks: getDistrictRisks };
+app.use("*", async (c, next) => {
+  c.set("capabilities", capabilities);
+  await next();
+});
 
 app.get("/health", (c) =>
   c.json({

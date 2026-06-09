@@ -14,7 +14,7 @@
  * Reasons are Localized (en/si/ta) via a fixed message dictionary — same pattern
  * as the weather module's risk messages — so nothing needs runtime translation.
  */
-import type { Localized } from "@karots/core";
+import type { Localized, DistrictRisk } from "@karots/core";
 import type { Crop } from "./schema";
 
 /** Recent price signal for one crop in the target district (per kg). */
@@ -25,17 +25,6 @@ export interface CropPriceTrend {
   previous: number | null;
 }
 
-/**
- * Optional weather risk flags for the district. This is the phase-2 seam: the v1
- * route passes nothing, keeping agriculture decoupled from the weather module.
- * A future core-level capability can supply these without a direct import.
- */
-export interface WeatherRiskFlags {
-  drySpell?: boolean;
-  heavyRain?: boolean;
-  heatStress?: boolean;
-}
-
 export interface RecommendationInput {
   crops: Crop[];
   /** Price trend per cropId in the target district. */
@@ -43,7 +32,12 @@ export interface RecommendationInput {
   districtId: string;
   /** Calendar month (1–12) the guest is planning for. */
   month: number;
-  risks?: WeatherRiskFlags;
+  /**
+   * Optional district weather risk flags. Supplied by the route from the core
+   * `districtRisks` capability (provided by the weather module) — agriculture
+   * never imports weather directly. When absent, scoring ignores weather.
+   */
+  risks?: DistrictRisk;
 }
 
 export interface Recommendation {
@@ -117,7 +111,7 @@ function waterScore(crop: Crop): number {
 }
 
 /** Penalty when a district's current weather conflicts with the crop's needs. */
-function riskPenalty(crop: Crop, risks: WeatherRiskFlags): number {
+function riskPenalty(crop: Crop, risks: DistrictRisk): number {
   let p = 0;
   if (risks.drySpell && crop.waterRequirement === "high") p += 30;
   if (risks.heavyRain && crop.waterRequirement === "low") p += 15;

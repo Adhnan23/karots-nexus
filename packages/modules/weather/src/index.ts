@@ -16,3 +16,4 @@ export { fetchWeather } from "./openMeteo";
 export type { WeatherBundle, CurrentWeather, ForecastDay } from "./openMeteo";
 export { deriveRisks } from "./risk";
 export type { FarmingRisks, RiskNote, RiskCode } from "./risk";
+export { getDistrictRisks } from "./provider";

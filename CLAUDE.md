@@ -14,10 +14,10 @@ low-risk by district + season + price trend), a knowledge base module (localized
 guides/articles — public read, admin CRUD), localized seed data (25 SL districts, 5
 enriched crops + stages, 10 disease/pest entries, 5 knowledge articles), and a weather
 module on Open-Meteo.
-Symptom search and recommendation reasons span all three languages. The decision engine is
-deliberately weather-agnostic (modules stay decoupled); its pure scorer exposes an optional
-`risks` seam for wiring weather in later. The full product/vision spec lives in `plan.md` —
-many of its features are not built yet.
+Symptom search, knowledge search, and recommendation reasons span all three languages. The
+decision engine's `lowRisk` lens is weather-aware via a core *capability* (the weather module
+provides `districtRisks`; the two modules never import each other). The full product/vision
+spec lives in `plan.md` — many of its features are not built yet.
 
 Toolchain: **Bun** (package manager + scripts), Cloudflare Workers runtime via Wrangler.
 A global `wrangler` (4.87.0) is on PATH but is older than the workspace-pinned 4.98.0 — always
@@ -44,7 +44,13 @@ This is the central constraint the whole codebase is organized around:
 - **Every domain entity carries district context.** Location is a `country → district →
   local area` hierarchy; data is filtered, priced, and recommended per district.
 - **Data models support cross-module linking** so future modules can reference shared
-  entities (users, districts) without coupling to each other.
+  entities (users, districts) without coupling to each other. Link by id, not by FK, when
+  the target lives in another module (e.g. `articles.cropId` has no foreign key).
+- **Modules never import each other.** When one module needs another's data, core defines a
+  neutral *capability* interface (`packages/core/src/capabilities.ts`, e.g. `districtRisks`);
+  the composition root wires the provider in and exposes it on the Hono context
+  (`c.var.capabilities`), and consumers treat it as optional. This is how the agriculture
+  decision engine uses weather risk without importing `@karots/weather`.
 
 When adding functionality, first decide: is it a *core* capability (district, search,
 analytics, plugin registry, auth) or a *module* capability? Core lives in `packages/core`;
@@ -115,7 +121,8 @@ packages/modules/agriculture   crops + crop_stages + market_prices + diseases sc
                                Hono router, growth-timeline + profitability + decision-engine
                                (recommendations) calcs, UploadThing helper
 packages/modules/weather       Open-Meteo client, current+forecast routes by district,
-                               KV cache, farming-risk flags (NO db table — reads core districts)
+                               KV cache, farming-risk flags, getDistrictRisks capability
+                               provider (NO db table — reads core districts)
 packages/modules/knowledge     articles schema (localized guides/articles, soft crop link),
                                Hono router (public read + admin CRUD), UploadThing helper
 packages/ui                    shared components (not created yet)
