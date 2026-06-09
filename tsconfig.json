@@ -43,6 +43,7 @@
   "exclude": [
     "node_modules",
     "**/dist",
-    "**/.wrangler"
+    "**/.wrangler",
+    "apps/web"
   ]
 }

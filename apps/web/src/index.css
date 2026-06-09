@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 150 30% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 150 30% 12%;
+  --primary: 142 71% 35%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 140 30% 94%;
+  --secondary-foreground: 150 30% 16%;
+  --muted: 140 20% 96%;
+  --muted-foreground: 150 10% 40%;
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 150 16% 88%;
+  --input: 150 16% 88%;
+  --ring: 142 71% 35%;
+  --radius: 0.75rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: ui-sans-serif, system-ui, "Noto Sans Sinhala", "Noto Sans Tamil", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
